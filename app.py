@@ -96,7 +96,13 @@ def run(args):
 
     seconds = 0 if args.interval < 0 else args.interval / 1000.0
     rounds = iter(int, 1) if args.rounds < 0 else range(args.rounds)
+
     print_mode = args.print_mode
+    if print_mode:
+        output_method = print
+    else:
+        output_method = plugin.publish
+
     options = set([key for key, value in vars(args).items() if value is True])
 
     commands = build_commands(options)
@@ -104,7 +110,7 @@ def run(args):
     # Run data collection
     for _ in rounds:
         for func, fd, params in commands:
-            func(fd, params, plugin.publish, print_mode)
+            func(fd, params, output_method)
         time.sleep(seconds)
 
     # Close files
