@@ -94,6 +94,7 @@ def build_commands(options):
 
 def run(args):
 
+    print(args)
     seconds = 0 if args.interval < 0 else args.interval / 1000.0
     rounds = iter(int, 1) if args.rounds < 0 else range(args.rounds)
 
@@ -130,11 +131,11 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '--interval', dest='interval',
-        action='store', default=-1, type=int,
+        action='store', default=1000, type=int,
         help='Interval between data collection (milliseconds)')
     parser.add_argument(
         '--rounds', dest='rounds',
-        action='store', default=-1, type=int,
+        action='store', default=5, type=int,
         help='Number of data collection rounds')
     parser.add_argument(
         '--print_mode', dest='print_mode',
