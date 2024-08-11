@@ -3,9 +3,7 @@ import argparse
 
 from fsparser import cpu
 
-import waggle.plugin as plugin
-
-plugin.init()
+from waggle.plugin import Plugin
 
 proc_stat_modules = [ 
      'proc:stat:user', 'proc:stat:nice', 'proc:stat:system', 
@@ -97,22 +95,23 @@ def run(args):
     print(args)
     seconds = 0 if args.interval < 0 else args.interval / 1000.0
     rounds = iter(int, 1) if args.rounds < 0 else range(args.rounds)
-
     print_mode = args.print_mode
-    if print_mode:
-        output_method = print
-    else:
-        output_method = plugin.publish
-
     options = set([key for key, value in vars(args).items() if value is True])
 
     commands = build_commands(options)
 
-    # Run data collection
-    for _ in rounds:
-        for func, fd, params in commands:
-            func(fd, params, output_method)
-        time.sleep(seconds)
+    with Plugin() as plugin:
+
+        if print_mode:
+            output_method = print
+        else:
+            output_method = plugin.publish
+
+        # Run data collection
+        for _ in rounds:
+            for func, fd, params in commands:
+                func(fd, params, output_method)
+            time.sleep(seconds)
 
     # Close files
     for _, fd, _ in commands:
