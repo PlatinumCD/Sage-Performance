@@ -122,22 +122,22 @@ def run(args):
 def add_arguments(modules, parser, group_name):
     group = parser.add_argument_group(group_name)
     for key in modules:
-        group.add_argument( f'-{key}', dest=key, action='store_true', default=False)
+        group.add_argument( f'--{key}', dest=key, action='store_true', default=False)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument(
-        '-interval', dest='interval',
+        '--interval', dest='interval',
         action='store', default=-1, type=int,
         help='Interval between data collection (milliseconds)')
     parser.add_argument(
-        '-rounds', dest='rounds',
+        '--rounds', dest='rounds',
         action='store', default=-1, type=int,
         help='Number of data collection rounds')
     parser.add_argument(
-        '-print_mode', dest='print_mode',
+        '--print_mode', dest='print_mode',
         action='store_true', default=False,
         help='Print data instead of publish data')
 

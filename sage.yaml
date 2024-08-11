@@ -9,3 +9,17 @@ homepage: "https://github.com/username/plugin-hello-world/blob/main/README.md"
 source:
   architectures:
     - "linux/arm64"
+
+inputs:
+- id: "rounds"
+  type: "int"
+- id: "interval"
+  type: "int"
+- id: "proc:stat:user"
+  type: "boolean" 
+- id: "proc:stat:system"
+  type: "boolean"
+- id: "proc:stat:ctxt"
+  type: "boolean"
+- id: "proc:stat:intr"
+  type: "boolean"
