@@ -1,6 +1,8 @@
 import os
 import time
 
+from waggle.plugin import Plugin
+
 cpu_idx_dict = {
     'user': 1,
     'nice': 2,
@@ -12,25 +14,51 @@ cpu_idx_dict = {
     'steal': 8
 }
 
-def get_proc_stat(fd, keys, output_method):
-    e = time.time()
+def get_proc_stat(fd, keys, print_mode):
 
-    fd.seek(0)
+    with Plugin() as plugin:
+        e = time.time()
 
-    cpu_keys = keys - {'ctxt', 'intr'}
-    cpu_line = fd.readline().split()
-    for key in cpu_keys:
-        output_method(f'perf.proc.stat.{key}', cpu_line[cpu_idx_dict[key]])
+        fd.seek(0)
 
-    for core_id in range(os.cpu_count()):
-        core_line = fd.readline().split()
+        cpu_keys = keys - {'ctxt', 'intr'}
+        cpu_line = fd.readline().split()
         for key in cpu_keys:
-            output_method(f'perf.proc.stat.cpu{core_id}.{key}', core_line[cpu_idx_dict[key]])
+            topic = f'perf.proc.stat.{key}'
+            value = cpu_line[cpu_idx_dict[key]]
 
-    intr_line = fd.readline().split()
-    if 'intr' in keys:
-        output_method(f'perf.proc.stat.intr', intr_line[1])
+            if print_mode:
+                print(topic, value)
+            else:
+                plugin.publish(topic, value)
 
-    ctxt_line = fd.readline().split()
-    if 'ctxt' in keys:
-        output_method(f'perf.proc.stat.ctxt', ctxt_line[1])
+        for core_id in range(os.cpu_count()):
+            core_line = fd.readline().split()
+            for key in cpu_keys:
+                topic = f'perf.proc.stat.cpu{core_id}.{key}'
+                value = core_line[cpu_idx_dict[key]]
+                
+                if print_mode:
+                    print(topic, value)
+                else:
+                    plugin.publish(f'perf.proc.stat.cpu{core_id}.{key}', core_line[cpu_idx_dict[key]])
+
+        intr_line = fd.readline().split()
+        if 'intr' in keys:
+            topic = 'perf.proc.stat.intr'
+            value = intr_line[1]
+
+            if print_mode:
+                print(topic, value)
+            else:
+                plugin.publish(topic, value)
+
+        ctxt_line = fd.readline().split()
+        if 'ctxt' in keys:
+            topic = 'perf.proc.stat.ctxt'
+            value = ctxt_line[1]
+
+            if print_mode:
+                print(topic, value)
+            else:
+                plugin.publish(topic, value)

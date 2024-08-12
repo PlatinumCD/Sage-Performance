@@ -3,8 +3,6 @@ import argparse
 
 from fsparser import cpu
 
-from waggle.plugin import Plugin
-
 proc_stat_modules = [ 
      'proc:stat:user', 'proc:stat:nice', 'proc:stat:system', 
      'proc:stat:idle', 'proc:stat:iowait', 'proc:stat:irq', 
@@ -100,18 +98,11 @@ def run(args):
 
     commands = build_commands(options)
 
-    with Plugin() as plugin:
-
-        if print_mode:
-            output_method = print
-        else:
-            output_method = plugin.publish
-
-        # Run data collection
-        for _ in rounds:
-            for func, fd, params in commands:
-                func(fd, params, output_method)
-            time.sleep(seconds)
+    # Run data collection
+    for _ in rounds:
+        for func, fd, params in commands:
+            func(fd, params, print_mode)
+        time.sleep(seconds)
 
     # Close files
     for _, fd, _ in commands:
