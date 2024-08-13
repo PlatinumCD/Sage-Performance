@@ -90,19 +90,26 @@ def build_commands(options):
 
 def run(args):
 
-    print(args)
-    seconds = 0 if args.interval < 0 else args.interval / 1000.0
-    rounds = iter(int, 1) if args.rounds < 0 else range(args.rounds)
-    print_mode = args.print_mode
-    options = set([key for key, value in vars(args).items() if value is True])
+    debug = args.debug
+    interval = 0 if args.interval < 0 else args.interval / 1000.0
+    aroc_period = args.aroc_period
 
+    rounds = iter(int, 1) if args.rounds <= 0 else range(args.rounds)
+    options = set([key for key, value in vars(args).items() if value is True])
     commands = build_commands(options)
+
+    rates = {}
+    metadata = {
+        'debug': debug, 
+        'interval': interval,
+        'aroc_period':aroc_period
+    }
 
     # Run data collection
     for _ in rounds:
         for func, fd, params in commands:
-            func(fd, params, print_mode)
-        time.sleep(seconds)
+            func(fd, params, metadata, rates)
+        time.sleep(interval)
 
     # Close files
     for _, fd, _ in commands:
@@ -128,9 +135,13 @@ if __name__ == '__main__':
         action='store', default=5, type=int,
         help='Number of data collection rounds')
     parser.add_argument(
-        '--print_mode', dest='print_mode',
+        '--debug', dest='debug',
         action='store_true', default=False,
         help='Print data instead of publish data')
+    parser.add_argument(
+        '--aroc-period', dest='aroc_period',
+        action='store', default=3, type=int,
+        help='Average rate of change period')
 
     add_arguments(proc_stat_modules, parser, '/proc/stat')
     add_arguments(sys_bus_i2c_modules, parser, '/sys/bus/i2c')

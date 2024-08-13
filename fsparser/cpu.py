@@ -1,5 +1,6 @@
 import os
 import time
+from collections import deque
 
 from waggle.plugin import Plugin
 
@@ -14,51 +15,62 @@ cpu_idx_dict = {
     'steal': 8
 }
 
-def get_proc_stat(fd, keys, print_mode):
+plugin = Plugin()
 
-    with Plugin() as plugin:
-        e = time.time()
+def update_rates(topic, value, rates, interval, period):
+    if topic not in rates:
+        rates[topic] = deque([])
 
-        fd.seek(0)
+    queue = rates[topic]
+    queue.appendleft(value)
 
-        cpu_keys = keys - {'ctxt', 'intr'}
-        cpu_line = fd.readline().split()
+    if len(queue) > period:
+        tmp = queue.pop()
+        return (value - tmp) / period 
+    else:
+        return (value - queue[-1]) / len(queue)
+
+
+def process(topic, value, debug):
+    if debug:
+        print(topic, value)
+    else:
+        plugin.publish(topic, value)
+
+def get_proc_stat(fd, keys, metadata, rates):
+    
+    debug = metadata['debug']
+    interval = metadata['interval']
+    aroc_period = metadata['aroc_period']
+
+    fd.seek(0)
+    cpu_keys = keys - {'ctxt', 'intr'}
+    cpu_line = fd.readline().split()
+    for key in cpu_keys:
+        topic = f'perf.proc.stat.{key}'
+        value = int(cpu_line[cpu_idx_dict[key]])
+        rate = update_rates(topic, value, rates, interval, aroc_period) 
+        process(topic, rate, debug)
+
+    for core_id in range(os.cpu_count()):
+        core_line = fd.readline().split()
         for key in cpu_keys:
-            topic = f'perf.proc.stat.{key}'
-            value = cpu_line[cpu_idx_dict[key]]
+            topic = f'perf.proc.stat.cpu{core_id}.{key}'
+            value = int(core_line[cpu_idx_dict[key]])
+            rate = update_rates(topic, value, rates, interval, aroc_period) 
+            process(topic, rate, debug)
+            
+    intr_line = fd.readline().split()
+    if 'intr' in keys:
+        topic = 'perf.proc.stat.intr'
+        value = int(intr_line[1])
+        rate = update_rates(topic, value, rates, interval, aroc_period) 
+        process(topic, rate, debug)
 
-            if print_mode:
-                print(topic, value)
-            else:
-                plugin.publish(topic, value)
 
-        for core_id in range(os.cpu_count()):
-            core_line = fd.readline().split()
-            for key in cpu_keys:
-                topic = f'perf.proc.stat.cpu{core_id}.{key}'
-                value = core_line[cpu_idx_dict[key]]
-                
-                if print_mode:
-                    print(topic, value)
-                else:
-                    plugin.publish(f'perf.proc.stat.cpu{core_id}.{key}', core_line[cpu_idx_dict[key]])
-
-        intr_line = fd.readline().split()
-        if 'intr' in keys:
-            topic = 'perf.proc.stat.intr'
-            value = intr_line[1]
-
-            if print_mode:
-                print(topic, value)
-            else:
-                plugin.publish(topic, value)
-
-        ctxt_line = fd.readline().split()
-        if 'ctxt' in keys:
-            topic = 'perf.proc.stat.ctxt'
-            value = ctxt_line[1]
-
-            if print_mode:
-                print(topic, value)
-            else:
-                plugin.publish(topic, value)
+    ctxt_line = fd.readline().split()
+    if 'ctxt' in keys:
+        topic = 'perf.proc.stat.ctxt'
+        value = int(ctxt_line[1])
+        rate = update_rates(topic, value, rates, interval, aroc_period) 
+        process(topic, rate, debug)
