@@ -2,8 +2,6 @@ import os
 import time
 from collections import deque
 
-from waggle.plugin import Plugin
-
 cpu_idx_dict = {
     'user': 1,
     'nice': 2,
@@ -15,7 +13,6 @@ cpu_idx_dict = {
     'steal': 8
 }
 
-plugin = Plugin()
 
 def update_rates(topic, value, rates, interval, period):
     if topic not in rates:
@@ -30,18 +27,17 @@ def update_rates(topic, value, rates, interval, period):
     else:
         return (value - queue[-1]) / len(queue)
 
+def process(topic, value, command, row):
+    command(topic, value)
+    row[topic] = value
 
-def process(topic, value, debug):
-    if debug:
-        print(topic, value)
-    else:
-        plugin.publish(topic, value)
-
-def get_proc_stat(fd, keys, metadata, rates):
+def get_proc_stat(fd, keys, context):
     
-    debug = metadata['debug']
-    interval = metadata['interval']
-    aroc_period = metadata['aroc_period']
+    interval = context['interval']
+    aroc_period = context['aroc_period']
+    rates = context['rates']
+    command = context['command']
+    row = context['row']
 
     fd.seek(0)
     cpu_keys = keys - {'ctxt', 'intr'}
@@ -50,7 +46,7 @@ def get_proc_stat(fd, keys, metadata, rates):
         topic = f'perf.proc.stat.{key}'
         value = int(cpu_line[cpu_idx_dict[key]])
         rate = update_rates(topic, value, rates, interval, aroc_period) 
-        process(topic, rate, debug)
+        process(topic, rate, command, row)
 
     for core_id in range(os.cpu_count()):
         core_line = fd.readline().split()
@@ -58,19 +54,18 @@ def get_proc_stat(fd, keys, metadata, rates):
             topic = f'perf.proc.stat.cpu{core_id}.{key}'
             value = int(core_line[cpu_idx_dict[key]])
             rate = update_rates(topic, value, rates, interval, aroc_period) 
-            process(topic, rate, debug)
+            process(topic, rate, command, row)
             
     intr_line = fd.readline().split()
     if 'intr' in keys:
         topic = 'perf.proc.stat.intr'
         value = int(intr_line[1])
         rate = update_rates(topic, value, rates, interval, aroc_period) 
-        process(topic, rate, debug)
-
+        process(topic, rate, command, row)
 
     ctxt_line = fd.readline().split()
     if 'ctxt' in keys:
         topic = 'perf.proc.stat.ctxt'
         value = int(ctxt_line[1])
         rate = update_rates(topic, value, rates, interval, aroc_period) 
-        process(topic, rate, debug)
+        process(topic, rate, command, row)
